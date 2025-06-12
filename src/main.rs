@@ -17,11 +17,12 @@ fn patch_parameters(args: &[String], config: &Config) -> Vec<String> {
     while i < args.len() {
         let arg = &args[i];
 
-        if arg == "-i" || arg == "--input-file" {
+        if arg == "-i" {
             modified_args.push(arg.clone());
 
             // Check if there's a value after -i
             if i + 1 < args.len() {
+                info!("Processing input file: {}", args[i + 1]);
                 i += 1;
                 let input_file = PathBuf::from(&args[i]);
 
@@ -33,14 +34,25 @@ fn patch_parameters(args: &[String], config: &Config) -> Vec<String> {
                     Err(e) => {
                         warn!("Failed to process input file: {}", e);
                         // If processing fails, use the original file
-                        modified_args.push(args[i].clone());
+                        modified_args.push(arg.clone());
                     }
                 }
             }
-        } else if arg == "--config" {
-            // Skip the next arg too (the config path)
-            if i + 1 < args.len() {
-                i += 1;
+        } else if arg.starts_with("--input-file=") {
+            let file_path = arg.trim_start_matches("--input-file=");
+            let input_file = PathBuf::from(file_path);
+
+            // Process the input file
+            match process_input_file(&input_file, config) {
+                Ok(processed_file) => {
+                    let arg = format!("--input-file={}", processed_file.to_string_lossy());
+                    modified_args.push(arg);
+                }
+                Err(e) => {
+                    warn!("Failed to process input file: {}", e);
+                    // If processing fails, use the original file
+                    modified_args.push(arg.clone());
+                }
             }
         } else if is_url(arg) {
             let modified_url = config.apply_url_replacements(arg);
@@ -66,14 +78,12 @@ fn main() -> Result<()> {
     // Get command line arguments (excluding the program name)
     let args: Vec<String> = std::env::args().skip(1).collect();
 
-    let mut config_path = PathBuf::from("config.toml");
-
-    // Check if --config flag is present
-    if let Some(config_pos) = args.iter().position(|arg| arg == "--config") {
-        if args.len() > config_pos + 1 {
-            config_path = PathBuf::from(&args[config_pos + 1]);
-        }
-    }
+    // Set default config path in user's home directory
+    let home_dir = dirs::home_dir().unwrap_or_else(|| PathBuf::from("."));
+    let config_path = home_dir
+        .join(".config")
+        .join("aria2-wrapper")
+        .join("config.toml");
 
     let config = match Config::from_file(&config_path) {
         Ok(config) => config,
@@ -85,8 +95,6 @@ fn main() -> Result<()> {
             Config::empty()
         }
     };
-    // Execute aria2c with processed arguments
-    info!("Executing aria2c with modified arguments");
 
     let modified_args = patch_parameters(&args, &config);
     let status = execute(&modified_args, &config)?;
