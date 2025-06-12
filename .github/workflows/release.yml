@@ -1,0 +1,90 @@
+name: Build and Release
+on:
+  push:
+    tags:
+      - 'v*'
+jobs:
+  build:
+    name: Build for ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            bin_name: aria2-wrapper
+            asset_name: aria2-wrapper-linux-amd64.zip
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            bin_name: aria2-wrapper.exe
+            asset_name: aria2-wrapper-windows-amd64.zip
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            bin_name: aria2-wrapper
+            asset_name: aria2-wrapper-macos-amd64.zip
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            bin_name: aria2-wrapper
+            asset_name: aria2-wrapper-macos-arm64.zip
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Setup Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: ${{ matrix.target }}
+          override: true
+      - name: Build binary
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --target ${{ matrix.target }}
+      # Create distribution directory with binary and supplementary files
+      - name: Create distribution directory
+        run: |
+          mkdir -p dist
+          cp README.md dist/
+          cp LICENSE dist/ || echo "No LICENSE file found"
+          cp config.toml dist/config.example.toml
+      # Copy binary to distribution directory based on platform
+      - name: Copy binary (Unix)
+        if: matrix.os != 'windows-latest'
+        run: cp target/${{ matrix.target }}/release/${{ matrix.bin_name }} dist/
+      - name: Copy binary (Windows)
+        if: matrix.os == 'windows-latest'
+        run: copy target\${{ matrix.target }}\release\${{ matrix.bin_name }} dist\
+      # Create ZIP archive
+      - name: Create ZIP (Unix)
+        if: matrix.os != 'windows-latest'
+        run: cd dist && zip -r ../${{ matrix.asset_name }} .
+      - name: Create ZIP (Windows)
+        if: matrix.os == 'windows-latest'
+        run: Compress-Archive -Path dist\* -DestinationPath ${{ matrix.asset_name }}
+        shell: pwsh
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.asset_name }}
+          path: ${{ matrix.asset_name }}
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Download artifacts
+        uses: actions/download-artifact@v3
+      - name: Create release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            aria2-wrapper-linux-amd64.zip/aria2-wrapper-linux-amd64.zip
+            aria2-wrapper-windows-amd64.zip/aria2-wrapper-windows-amd64.zip
+            aria2-wrapper-macos-amd64.zip/aria2-wrapper-macos-amd64.zip
+            aria2-wrapper-macos-arm64.zip/aria2-wrapper-macos-arm64.zip
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
