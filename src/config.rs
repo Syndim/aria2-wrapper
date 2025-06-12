@@ -1,9 +1,7 @@
 use anyhow::{Context, Result};
-use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
-use tracing::warn;
 
 /// Config for URL replacements
 #[derive(Debug, Serialize, Deserialize)]
@@ -41,30 +39,4 @@ impl Config {
         let config: Config = toml::from_str(content.as_str())?;
         Ok(config)
     }
-
-    /// Apply URL replacement rules to the given URL
-    pub fn apply_url_replacements(&self, url_str: &str) -> String {
-        let mut result = url_str.to_string();
-
-        for rule in &self.replacements {
-            match Regex::new(&rule.pattern) {
-                Ok(regex) => {
-                    result = regex.replace_all(&result, &rule.replacement).to_string();
-                }
-                Err(e) => {
-                    warn!("Invalid regex pattern '{}': {}", rule.pattern, e);
-                }
-            }
-        }
-
-        result
-    }
-}
-
-/// Check if the string is a URL
-pub fn is_url(s: &str) -> bool {
-    s.starts_with("http://")
-        || s.starts_with("https://")
-        || s.starts_with("ftp://")
-        || s.starts_with("magnet:")
 }

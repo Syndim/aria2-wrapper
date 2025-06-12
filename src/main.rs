@@ -1,14 +1,16 @@
 mod aria2c;
 mod config;
 mod file_handler;
+mod utils;
 
 use std::path::PathBuf;
 
 use anyhow::Result;
-use aria2c::execute;
-use config::{Config, is_url};
-use file_handler::process_input_file;
 use tracing::{error, info, warn};
+
+use crate::aria2c::execute;
+use crate::config::Config;
+use crate::file_handler::process_input_file;
 
 fn patch_parameters(args: &[String], config: &Config) -> Vec<String> {
     let mut modified_args = Vec::new();
@@ -27,35 +29,24 @@ fn patch_parameters(args: &[String], config: &Config) -> Vec<String> {
                 let input_file = PathBuf::from(&args[i]);
 
                 // Process the input file
-                match process_input_file(&input_file, config) {
-                    Ok(processed_file) => {
-                        modified_args.push(processed_file.to_string_lossy().to_string());
-                    }
-                    Err(e) => {
-                        warn!("Failed to process input file: {}", e);
-                        // If processing fails, use the original file
-                        modified_args.push(arg.clone());
-                    }
+                if let Err(e) = process_input_file(&input_file, config) {
+                    warn!("Failed to process input file: {}", e);
                 }
+
+                modified_args.push(arg.clone());
             }
         } else if arg.starts_with("--input-file=") {
             let file_path = arg.trim_start_matches("--input-file=");
             let input_file = PathBuf::from(file_path);
 
             // Process the input file
-            match process_input_file(&input_file, config) {
-                Ok(processed_file) => {
-                    let arg = format!("--input-file={}", processed_file.to_string_lossy());
-                    modified_args.push(arg);
-                }
-                Err(e) => {
-                    warn!("Failed to process input file: {}", e);
-                    // If processing fails, use the original file
-                    modified_args.push(arg.clone());
-                }
+            if let Err(e) = process_input_file(&input_file, config) {
+                warn!("Failed to process input file: {}", e);
             }
-        } else if is_url(arg) {
-            let modified_url = config.apply_url_replacements(arg);
+
+            modified_args.push(arg.clone());
+        } else if utils::is_url(arg) {
+            let modified_url = utils::apply_url_replacements(config, arg);
             modified_args.push(modified_url);
         } else {
             modified_args.push(arg.clone());
