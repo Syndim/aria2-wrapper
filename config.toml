@@ -1,0 +1,17 @@
+# Aria2 Wrapper Configuration File
+
+# Path to the aria2c executable (defaults to "aria2c" if not specified)
+aria2c_path = "aria2c"
+
+# URL replacements - patterns are regular expressionsns
+[[replacements]]
+pattern = "^https://example.com/"
+replacement = "https://mirror.example.com/"
+
+[[replacements]]
+pattern = "^https://slow-cdn.com/files/"
+replacement = "https://fast-cdn.com/mirror/"
+
+[[replacements]]
+pattern = "^magnet:.*dn=([^&]+).*"
+replacement = "magnet:?xt=urn:btih:$1"
