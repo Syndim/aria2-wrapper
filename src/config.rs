@@ -24,19 +24,20 @@ pub struct UrlReplacement {
 }
 
 impl Config {
-    /// Create a new empty config
-    pub fn empty() -> Self {
-        Config {
-            replacements: vec![],
-            aria2c_path: default_aria2c_path(),
-        }
-    }
-
     /// Load configuration from the specified file
     pub fn from_file(path: &Path) -> Result<Self> {
         let content =
             fs::read_to_string(path).context(format!("Failed to read config file: {:?}", path))?;
         let config: Config = toml::from_str(content.as_str())?;
         Ok(config)
+    }
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Config {
+            replacements: Vec::new(),
+            aria2c_path: default_aria2c_path(),
+        }
     }
 }

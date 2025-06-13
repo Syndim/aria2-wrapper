@@ -1,16 +1,13 @@
 mod aria2c;
 mod config;
-mod file_handler;
 mod utils;
 
 use std::path::PathBuf;
 
 use anyhow::Result;
-use tracing::{error, info, warn};
+use tracing::{debug, error, warn};
 
-use crate::aria2c::execute;
 use crate::config::Config;
-use crate::file_handler::process_input_file;
 
 fn patch_parameters(args: &[String], config: &Config) -> Vec<String> {
     let mut modified_args = Vec::new();
@@ -24,12 +21,12 @@ fn patch_parameters(args: &[String], config: &Config) -> Vec<String> {
 
             // Check if there's a value after -i
             if i + 1 < args.len() {
-                info!("Processing input file: {}", args[i + 1]);
+                debug!("Processing input file: {}", args[i + 1]);
                 i += 1;
                 let input_file = PathBuf::from(&args[i]);
 
                 // Process the input file
-                if let Err(e) = process_input_file(&input_file, config) {
+                if let Err(e) = utils::replace_urls_in_file(&input_file, config) {
                     warn!("Failed to process input file: {}", e);
                 }
 
@@ -40,7 +37,7 @@ fn patch_parameters(args: &[String], config: &Config) -> Vec<String> {
             let input_file = PathBuf::from(file_path);
 
             // Process the input file
-            if let Err(e) = process_input_file(&input_file, config) {
+            if let Err(e) = utils::replace_urls_in_file(&input_file, config) {
                 warn!("Failed to process input file: {}", e);
             }
 
@@ -64,7 +61,7 @@ fn main() -> Result<()> {
         .with_max_level(tracing::Level::INFO)
         .init();
 
-    info!("Starting aria2-wrapper");
+    debug!("Starting aria2-wrapper");
 
     // Get command line arguments (excluding the program name)
     let args: Vec<String> = std::env::args().skip(1).collect();
@@ -80,15 +77,15 @@ fn main() -> Result<()> {
         Ok(config) => config,
         Err(e) => {
             warn!(
-                "Config file not found or invalid at {:?}, using empty config: {}",
+                "Config file not found or invalid at {:?}, using default config: {}",
                 config_path, e
             );
-            Config::empty()
+            Config::default()
         }
     };
 
     let modified_args = patch_parameters(&args, &config);
-    let status = execute(&modified_args, &config)?;
+    let status = aria2c::run_with(&modified_args, &config)?;
 
     if !status.success() {
         error!("aria2c exited with status: {}", status);
