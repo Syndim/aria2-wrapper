@@ -1,5 +1,6 @@
-mod aria2c;
-mod config;
+pub mod config;
+
+mod ps;
 mod utils;
 
 use std::path::PathBuf;
@@ -7,7 +8,7 @@ use std::path::PathBuf;
 use anyhow::Result;
 use tracing::{debug, error, warn};
 
-use crate::config::Config;
+use crate::config::{Config, Downloader};
 
 fn patch_parameters(args: &[String], config: &Config) -> Vec<String> {
     let mut modified_args = Vec::new();
@@ -55,13 +56,13 @@ fn patch_parameters(args: &[String], config: &Config) -> Vec<String> {
     modified_args
 }
 
-fn main() -> Result<()> {
+pub fn run(downloader: Downloader) -> Result<()> {
     // Initialize logging
     tracing_subscriber::fmt()
         .with_max_level(tracing::Level::INFO)
         .init();
 
-    debug!("Starting aria2-wrapper");
+    debug!("Starting {}-wrapper", downloader);
 
     // Get command line arguments (excluding the program name)
     let args: Vec<String> = std::env::args().skip(1).collect();
@@ -70,7 +71,7 @@ fn main() -> Result<()> {
     let home_dir = dirs::home_dir().unwrap_or_else(|| PathBuf::from("."));
     let config_path = home_dir
         .join(".config")
-        .join("aria2-wrapper")
+        .join("download-wrapper")
         .join("config.toml");
 
     let config = match Config::from_file(&config_path) {
@@ -85,7 +86,7 @@ fn main() -> Result<()> {
     };
 
     let modified_args = patch_parameters(&args, &config);
-    let status = aria2c::run_with(&modified_args, &config)?;
+    let status = ps::run_with(&modified_args, config.get_downloader_path(downloader))?;
 
     if !status.success() {
         error!("aria2c exited with status: {}", status);

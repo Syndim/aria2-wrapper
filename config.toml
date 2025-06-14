@@ -1,7 +1,9 @@
-# Aria2 Wrapper Configuration File
+# Downloader Wrapper Configuration File
 
 # Path to the aria2c executable (defaults to "aria2c" if not specified)
 aria2c_path = "aria2c"
+
+curl_path = "curl"
 
 # URL replacements - patterns are regular expressionsns
 [[replacements]]

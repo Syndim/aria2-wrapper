@@ -1,10 +1,18 @@
 [package]
-name = "aria2-wrapper"
+name = "downloader-wrapper"
 version = "0.1.2"
 edition = "2024"
 
 [profile.release]
 lto = true
+
+[[bin]]
+name = "aria2-wrapper"
+path = "src/bin/aria2.rs"
+
+[[bin]]
+name = "curl-wrapper"
+path = "src/bin/curl.rs"
 
 [dependencies]
 url = "2"
