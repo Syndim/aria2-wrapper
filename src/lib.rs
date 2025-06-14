@@ -71,7 +71,7 @@ pub fn run(downloader: Downloader) -> Result<()> {
     let home_dir = dirs::home_dir().unwrap_or_else(|| PathBuf::from("."));
     let config_path = home_dir
         .join(".config")
-        .join("download-wrapper")
+        .join("downloader-wrapper")
         .join("config.toml");
 
     let config = match Config::from_file(&config_path) {
